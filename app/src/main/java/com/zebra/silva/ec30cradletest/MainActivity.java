@@ -69,8 +69,6 @@ public class MainActivity extends AppCompatActivity {
       if (startActivityIntent.getExtras() != null) {
         Bundle startActivityExtras = startActivityIntent.getExtras();
         String command = startActivityExtras.getString(COMMAND);
-
-        Toast.makeText(this, "Command: " + command, Toast.LENGTH_LONG).show();
         if (command != null) {
           if (command.equals(BLINK)) {
             // CradleUnlockWithLEDBlink();
@@ -124,8 +122,6 @@ public class MainActivity extends AppCompatActivity {
   private void CradleUnlockWithLED() {
     Log.i(TAG, "Start Unlock with LED");
 
-    Toast.makeText(this, "Start Unlock with LED", Toast.LENGTH_LONG).show();
-
     Intent intent = new Intent();
     intent.setAction("com.symbol.cradle.api.ACTION_DO");
     Bundle unlockBundle = new Bundle();
@@ -167,8 +163,6 @@ public class MainActivity extends AppCompatActivity {
 
   private void CradleLEDBlink() {
     Log.i(TAG, "Start Unlock with Blink");
-
-    Toast.makeText(this, "Start Unlock with Blink", Toast.LENGTH_LONG).show();
 
     Intent intent = new Intent();
     intent.setAction("com.symbol.cradle.api.ACTION_DO");
