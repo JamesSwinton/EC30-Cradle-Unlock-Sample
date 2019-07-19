@@ -9,7 +9,6 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.Toast;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -34,8 +33,6 @@ public class MainActivity extends AppCompatActivity {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_main);
 
-    context= this;
-
     // Register Intents Receiver
     registerReceiver();
 
@@ -52,6 +49,9 @@ public class MainActivity extends AppCompatActivity {
   @Override
   protected void onResume() {
     super.onResume();
+
+    // Init Context
+    context = this;
 
     // Check for StartActivity Intents
     getStartActivityIntents();
@@ -75,7 +75,7 @@ public class MainActivity extends AppCompatActivity {
           if (command.equals(BLINK)) {
             // CradleUnlockWithLEDBlink();
           } else if (command.equals(SOLID)) {
-            CradleUnlockWithLED();
+            CradleUnlockWithLED(true);
           } else {
             Log.e(TAG, "Invalid Command");
           }
@@ -142,6 +142,29 @@ public class MainActivity extends AppCompatActivity {
     sendBroadcast(intent);
   }
 
+  private void CradleUnlockWithLED(boolean exitOnSend) {
+    Log.i(TAG, "Start Unlock with LED");
+
+    Intent intent = new Intent();
+    intent.setAction("com.symbol.cradle.api.ACTION_DO");
+    Bundle unlockBundle = new Bundle();
+    unlockBundle.putInt("TIMEOUT", 10);
+    unlockBundle.putBoolean("LED", true);
+    intent.putExtra("UNLOCK", unlockBundle);
+
+    Intent responseIntent = new Intent(getApplicationContext(),  MyBroadcastReceiver.class);
+    responseIntent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
+    responseIntent.putExtra("COMMAND", "CRADLE_UNLOCK_WITH_LED");
+
+    PendingIntent piResponse = PendingIntent.getBroadcast(getApplicationContext(), REQUEST_CODE, responseIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+    intent.putExtra("CALLBACK_RESPONSE", piResponse);
+    sendBroadcast(intent);
+
+    if (exitOnSend) {
+      ((MainActivity) context).finish();
+    }
+  }
+
   private void CradleLEDBlink() {
     Log.i(TAG, "Start Unlock with Blink");
 
@@ -179,7 +202,7 @@ public class MainActivity extends AppCompatActivity {
             if (command.equals(BLINK)) {
               // CradleUnlockWithLEDBlink();
             } else if (command.equals(SOLID)) {
-              CradleUnlockWithLED();
+              CradleUnlockWithLED(true);
             } else {
               Log.e(TAG, "Invalid Command");
             }
@@ -219,7 +242,6 @@ public class MainActivity extends AppCompatActivity {
       if (resultMessage != null) {
         status += "\n* Message= " + resultMessage + " \n";
       }
-      Toast.makeText(context, "Status: " + status, Toast.LENGTH_LONG).show();
       Log.d(MyBroadcastReceiver.class.getSimpleName(), status);
     }
 
