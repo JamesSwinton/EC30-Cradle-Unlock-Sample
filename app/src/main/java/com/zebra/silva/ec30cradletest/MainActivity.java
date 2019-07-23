@@ -66,21 +66,26 @@ public class MainActivity extends AppCompatActivity {
   private void getStartActivityIntents() {
     Intent startActivityIntent = getIntent();
     if (startActivityIntent != null) {
-      if (startActivityIntent.getExtras() != null) {
-        Bundle startActivityExtras = startActivityIntent.getExtras();
-        String command = startActivityExtras.getString(COMMAND);
-        if (command != null) {
-          if (command.equals(BLINK)) {
-            // CradleUnlockWithLEDBlink();
-          } else if (command.equals(SOLID)) {
-            CradleUnlockWithLED(true);
-          } else {
-            Log.e(TAG, "Invalid Command");
-          }
-        } else {
-          Log.e(TAG, "No Command Intent");
-        }
+      if (startActivityIntent.getAction() == null) {
+        CradleUnlockWithLED(true);
+      } else {
+        Log.i(TAG, "Started Via UI");
       }
+//      if (startActivityIntent.getExtras() != null) {
+//        Bundle startActivityExtras = startActivityIntent.getExtras();
+//        String command = startActivityExtras.getString(COMMAND);
+//        if (command != null) {
+//          if (command.equals(BLINK)) {
+//            // CradleUnlockWithLEDBlink();
+//          } else if (command.equals(SOLID)) {
+//            CradleUnlockWithLED(true);
+//          } else {
+//            Log.e(TAG, "Invalid Command");
+//          }
+//        } else {
+//          Log.e(TAG, "No Command Intent");
+//        }
+//      }
     } else {
       Log.e(TAG, "No Start Activity Intent Supplied");
     }
@@ -139,7 +144,7 @@ public class MainActivity extends AppCompatActivity {
   }
 
   private void CradleUnlockWithLED(boolean exitOnSend) {
-    Log.i(TAG, "Start Unlock with LED");
+    Log.i(TAG, "Start Unlock with LED & Exit");
 
     Intent intent = new Intent();
     intent.setAction("com.symbol.cradle.api.ACTION_DO");
