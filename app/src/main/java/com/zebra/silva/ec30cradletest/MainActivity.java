@@ -8,23 +8,29 @@ import android.content.IntentFilter;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.View;
+import android.widget.Toast;
 
 
 public class MainActivity extends AppCompatActivity {
-  int color = 16;//1-Green,16-Red,17-Blue
-  boolean isSolid = false;
-  int REQUEST_CODE = 2;
 
+  // Debugging
   private static final String TAG = "UnlockActivity";
+
+  // Constants
+  private static final int CRADLE_RESULTS = 100;
+  private static final String COMMAND = "COMMAND";
+  private static final String BLINK = "UNLOCK_LED_BLINK";
+  private static final String SOLID = "UNLOCK_LED_SOLID";
   private static final String UNLOCK_ACTION = "com.zebra.UNLOCK";
 
-  public static final String COMMAND = "COMMAND";
-  public static final String BLINK = "UNLOCK_LED_BLINK";
-  public static final String SOLID = "UNLOCK_LED_SOLID";
+  // Unlock Variables
+  private static final int color = 16; //1 = Green, 16 = Red, 17 = Blue
+  private static final boolean isSolid = false;
 
+  // Broadcast Variables
   private IntentFilter mUnlockIntentFilter;
   private UnlockIntentReceiver mUnlockIntentReceiver;
+  private CradleCommunicationResponseReceiver mCradleCommunicationResponseReceiver;
 
   public Context context;
 
@@ -36,14 +42,14 @@ public class MainActivity extends AppCompatActivity {
     // Register Intents Receiver
     registerReceiver();
 
-    findViewById(R.id.button).setOnClickListener(new View.OnClickListener() {
-      @Override
-      public void onClick(View v) {
-        //CradleLEDBlink();
-        CradleUnlockWithLED();
-        //CradleUnlockWithLEDBlink();
-      }
-    });
+    // Init Unlock Button
+    findViewById(R.id.button).setOnClickListener(view -> cradleUnlockWithLED());
+  }
+
+  @Override
+  protected void onDestroy() {
+    super.onDestroy();
+    unregisterReceiver();
   }
 
   @Override
@@ -57,57 +63,64 @@ public class MainActivity extends AppCompatActivity {
     getStartActivityIntents();
   }
 
-  @Override
-  protected void onDestroy() {
-    super.onDestroy();
-    unregisterReceiver();
-  }
-
   private void getStartActivityIntents() {
-    Intent startActivityIntent = getIntent();
-    if (startActivityIntent != null) {
-      if (startActivityIntent.getAction() == null) {
-        CradleUnlockWithLED(true);
-      } else {
-        Log.i(TAG, "Started Via UI");
-      }
-//      if (startActivityIntent.getExtras() != null) {
-//        Bundle startActivityExtras = startActivityIntent.getExtras();
-//        String command = startActivityExtras.getString(COMMAND);
-//        if (command != null) {
-//          if (command.equals(BLINK)) {
-//            // CradleUnlockWithLEDBlink();
-//          } else if (command.equals(SOLID)) {
-//            CradleUnlockWithLED(true);
-//          } else {
-//            Log.e(TAG, "Invalid Command");
-//          }
-//        } else {
-//          Log.e(TAG, "No Command Intent");
-//        }
-//      }
-    } else {
-      Log.e(TAG, "No Start Activity Intent Supplied");
+    // Get Intents from Activity Start
+    Intent mainActivityIntent = getIntent();
+
+    // Validate Intent
+    if (mainActivityIntent == null) {
+      Log.i(TAG, "Main Activity does not contain Intent");
+      return;
+    }
+
+    // Validate Action
+    if (mainActivityIntent.getAction() == null) {
+      Log.i(TAG, "Main Activity Intent does not have an Action");
+      return;
+    }
+
+    // Start Unlock with Exit
+    if (mainActivityIntent.getAction().equals(UNLOCK_ACTION)) {
+      cradleUnlockWithLEDAndExit();
     }
   }
 
+  /**
+   * Receiver Register / Unregister Methods
+   */
+
   private void registerReceiver() {
+    // Build Unlock Receiver
     if (mUnlockIntentReceiver == null) {
       mUnlockIntentReceiver = new UnlockIntentReceiver();
     }
+
+    // Build Unlock Filter
     if (mUnlockIntentFilter == null) {
       mUnlockIntentFilter = new IntentFilter();
+    } mUnlockIntentFilter.addAction(UNLOCK_ACTION);
+
+    // Build Cradle Response Receiver
+    if (mCradleCommunicationResponseReceiver == null) {
+      mCradleCommunicationResponseReceiver = new CradleCommunicationResponseReceiver();
     }
-    mUnlockIntentFilter.addAction(UNLOCK_ACTION);
+
+    // Register Receivers
     registerReceiver(mUnlockIntentReceiver, mUnlockIntentFilter);
+    registerReceiver(mCradleCommunicationResponseReceiver, new IntentFilter());
   }
 
   private void unregisterReceiver() {
+    // Unregister Receivers
     unregisterReceiver(mUnlockIntentReceiver);
+    unregisterReceiver(mCradleCommunicationResponseReceiver);
   }
 
+  /**
+   * Unlocking Methods
+   */
 
-  private void CradleUnlock() {
+  private void cradleUnlockWithoutLED() {
     Intent intent = new Intent();
     intent.setAction("com.symbol.cradle.api.ACTION_DO");
     Bundle unlockBundle = new Bundle();
@@ -115,18 +128,21 @@ public class MainActivity extends AppCompatActivity {
     unlockBundle.putBoolean("LED", false);
     intent.putExtra("UNLOCK", unlockBundle);
 
-    Intent responseIntent = new Intent(getApplicationContext(), MyBroadcastReceiver.class);
+    Intent responseIntent = new Intent(getApplicationContext(), CradleCommunicationResponseReceiver.class);
     responseIntent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
     responseIntent.putExtra("COMMAND", "CRADLE_UNLOCK");
 
-    PendingIntent piResponse = PendingIntent.getBroadcast(getApplicationContext(), REQUEST_CODE, responseIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+    PendingIntent piResponse = PendingIntent.getBroadcast(getApplicationContext(), CRADLE_RESULTS, responseIntent, PendingIntent.FLAG_UPDATE_CURRENT);
     intent.putExtra("CALLBACK_RESPONSE", piResponse);
     sendBroadcast(intent);
   }
 
-  private void CradleUnlockWithLED() {
+  private void cradleUnlockWithLED() {
+    // Log Unlock Attempt
     Log.i(TAG, "Start Unlock with LED");
+    Toast.makeText(context, "Starting Unlock with LED", Toast.LENGTH_SHORT).show();
 
+    // Create Unlock Intent
     Intent intent = new Intent();
     intent.setAction("com.symbol.cradle.api.ACTION_DO");
     Bundle unlockBundle = new Bundle();
@@ -134,18 +150,26 @@ public class MainActivity extends AppCompatActivity {
     unlockBundle.putBoolean("LED", true);
     intent.putExtra("UNLOCK", unlockBundle);
 
-    Intent responseIntent = new Intent(getApplicationContext(),  MyBroadcastReceiver.class);
+    // Create Callback Intent
+    Intent responseIntent = new Intent(getApplicationContext(),  CradleCommunicationResponseReceiver.class);
     responseIntent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
     responseIntent.putExtra("COMMAND", "CRADLE_UNLOCK_WITH_LED");
 
-    PendingIntent piResponse = PendingIntent.getBroadcast(getApplicationContext(), REQUEST_CODE, responseIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+    // Bundle Intents
+    PendingIntent piResponse = PendingIntent.getBroadcast(getApplicationContext(), CRADLE_RESULTS,
+        responseIntent, PendingIntent.FLAG_UPDATE_CURRENT);
     intent.putExtra("CALLBACK_RESPONSE", piResponse);
+
+    // Send Broadcast
     sendBroadcast(intent);
   }
 
-  private void CradleUnlockWithLED(boolean exitOnSend) {
+  private void cradleUnlockWithLEDAndExit() {
+    // Log Unlock Attempt
     Log.i(TAG, "Start Unlock with LED & Exit");
+    Toast.makeText(context, "Starting Unlock with LED & Exit", Toast.LENGTH_SHORT).show();
 
+    // Create Unlock Intent
     Intent intent = new Intent();
     intent.setAction("com.symbol.cradle.api.ACTION_DO");
     Bundle unlockBundle = new Bundle();
@@ -153,20 +177,29 @@ public class MainActivity extends AppCompatActivity {
     unlockBundle.putBoolean("LED", true);
     intent.putExtra("UNLOCK", unlockBundle);
 
-    Intent responseIntent = new Intent(getApplicationContext(),  MyBroadcastReceiver.class);
+    // Create Callback Intent
+    Intent responseIntent = new Intent(getApplicationContext(),  CradleCommunicationResponseReceiver.class);
     responseIntent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
     responseIntent.putExtra("COMMAND", "CRADLE_UNLOCK_WITH_LED");
 
-    PendingIntent piResponse = PendingIntent.getBroadcast(getApplicationContext(), REQUEST_CODE, responseIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+    // Bundle Intents
+    PendingIntent piResponse = PendingIntent.getBroadcast(getApplicationContext(), CRADLE_RESULTS,
+        responseIntent, PendingIntent.FLAG_UPDATE_CURRENT);
     intent.putExtra("CALLBACK_RESPONSE", piResponse);
+
+    // Send Broadcast
     sendBroadcast(intent);
 
-    if (exitOnSend) {
-      ((MainActivity) context).finish();
-    }
+    // Exit Application
+    ((MainActivity) context).finish();
   }
 
-  private void CradleLEDBlink() {
+  /**
+   * Misc. Cradle Methods
+   */
+
+  private void cradleLEDBlink() {
+    // Log Blink
     Log.i(TAG, "Start Unlock with Blink");
 
     Intent intent = new Intent();
@@ -177,14 +210,18 @@ public class MainActivity extends AppCompatActivity {
     blinkBundle.putBoolean("SOLID", isSolid); // true OR false
     intent.putExtra("BLINK", blinkBundle);
 
-    Intent responseIntent = new Intent(getApplicationContext(), MyBroadcastReceiver.class);
+    Intent responseIntent = new Intent(getApplicationContext(), CradleCommunicationResponseReceiver.class);
     responseIntent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
     responseIntent.putExtra("COMMAND", "CRADLE_BLINK_LED");
 
-    PendingIntent piResponse = PendingIntent.getBroadcast(getApplicationContext(), REQUEST_CODE, responseIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+    PendingIntent piResponse = PendingIntent.getBroadcast(getApplicationContext(), CRADLE_RESULTS, responseIntent, PendingIntent.FLAG_UPDATE_CURRENT);
     intent.putExtra("CALLBACK_RESPONSE", piResponse);
     sendBroadcast(intent);
   }
+
+  /**
+   * Broadcast Receiver to Listen for Unlock Command
+   */
 
   public class UnlockIntentReceiver extends BroadcastReceiver {
 
@@ -199,9 +236,9 @@ public class MainActivity extends AppCompatActivity {
           String command = intent.getStringExtra(COMMAND);
           if (command != null) {
             if (command.equals(BLINK)) {
-              // CradleUnlockWithLEDBlink();
+              cradleLEDBlink();
             } else if (command.equals(SOLID)) {
-              CradleUnlockWithLED(true);
+              cradleUnlockWithLEDAndExit();
             } else {
               Log.e(TAG, "Invalid Command");
             }
@@ -215,23 +252,22 @@ public class MainActivity extends AppCompatActivity {
     }
   }
 
-  /*The broadcast receiver below will receive the responseIntent defined in the above functions once any of the above API calls have been processed
-  register this broadcast receiver by putting the below in the <application> section of the manifest.
-          <receiver
-          android:name=".MainActivity$MyBroadcastReceiver">
-      </receiver>
+  /**
+   * Broadcast Receiver to Listen for Cradle Response
+   */
 
-  */
-  public static class MyBroadcastReceiver extends BroadcastReceiver {
+  public static class CradleCommunicationResponseReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
 
+      // Get Response Details
       String status = "";
       String command = intent.getStringExtra("COMMAND");
       String resultCode = intent.getStringExtra("RESULT_CODE");
       String resultMessage = intent.getStringExtra("RESULT_MESSAGE");
 
+      // Build Response String
       if (command != null) {
         status += "\n* " + command;
       }
@@ -241,9 +277,10 @@ public class MainActivity extends AppCompatActivity {
       if (resultMessage != null) {
         status += "\n* Message= " + resultMessage + " \n";
       }
-      Log.d(MyBroadcastReceiver.class.getSimpleName(), status);
-    }
 
+      // Log Response
+      Log.d(TAG, status);
+    }
   }
 }
 
