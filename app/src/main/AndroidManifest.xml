@@ -18,7 +18,7 @@
 
         </activity>
         <receiver
-            android:name=".MainActivity$MyBroadcastReceiver">
+          android:name=".MainActivity$CradleCommunicationResponseReceiver">
         </receiver>
 
     </application>
